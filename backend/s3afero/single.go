@@ -98,7 +98,8 @@ func (db *SingleBucketBackend) ListBucket(bucket string, prefix *gofakes3.Prefix
 	if prefix == nil {
 		prefix = emptyPrefix
 	}
-	if !page.IsEmpty() {
+
+	if page.HasMarker {
 		return nil, gofakes3.ErrInternalPageNotImplemented
 	}
 
@@ -132,21 +133,21 @@ func (db *SingleBucketBackend) getBucketWithFilePrefixLocked(bucket string, pref
 		}
 
 		if entry.IsDir() {
-			response.AddPrefix(path.Join(prefixPath, prefixPart))
-
+			response.AddPrefix(path.Join(prefixPath, object) + "/")
 		} else {
 			size := entry.Size()
 			mtime := entry.ModTime()
 
-			meta, err := db.metaStore.loadMeta(bucket, objectPath, size, mtime)
-			if err != nil {
-				return nil, err
-			}
+			// meta, err := db.metaStore.loadMeta(bucket, objectPath, size, mtime)
+			// if err != nil {
+			// 	return nil, err
+			// }
 
 			response.Add(&gofakes3.Content{
 				Key:          objectPath,
 				LastModified: gofakes3.NewContentTime(mtime),
-				ETag:         `"` + hex.EncodeToString(meta.Hash) + `"`,
+				ETag:         `fakeEtag`,
+				// ETag:         `"` + hex.EncodeToString(meta.Hash) + `"`,
 				Size:         size,
 			})
 		}
@@ -255,7 +256,7 @@ func (db *SingleBucketBackend) GetObject(bucketName, objectName string, rangeReq
 		return nil, err
 	}
 
-	size, mtime := stat.Size(), stat.ModTime()
+	size, _ := stat.Size(), stat.ModTime()
 
 	var rdr io.ReadCloser = f
 	rnge, err := rangeRequest.Range(size)
@@ -270,15 +271,15 @@ func (db *SingleBucketBackend) GetObject(bucketName, objectName string, rangeReq
 		rdr = limitReadCloser(rdr, f.Close, rnge.Length)
 	}
 
-	meta, err := db.metaStore.loadMeta(bucketName, objectName, size, mtime)
-	if err != nil {
-		return nil, err
-	}
+	// meta, err := db.metaStore.loadMeta(bucketName, objectName, size, mtime)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return &gofakes3.Object{
 		Name:     objectName,
-		Hash:     meta.Hash,
-		Metadata: meta.Meta,
+		Hash:     []byte("fakeHash"),
+//		Metadata: meta.Meta,
 		Size:     size,
 		Range:    rnge,
 		Contents: rdr,
