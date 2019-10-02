@@ -130,6 +130,11 @@ func (db *SingleBucketBackend) getBucketWithFilePrefixLocked(bucket string, pref
 		// Expected use of 'path'; see the "Path Handling" subheading in doc.go:
 		objectPath := path.Join(prefixPath, object)
 
+		entry, err = db.fs.Stat(objectPath)
+		if err != nil {
+			return nil, err
+		}
+
 		if prefixPart != "" && !strings.HasPrefix(object, prefixPart) {
 			continue
 		}
@@ -162,6 +167,10 @@ func (db *SingleBucketBackend) getBucketWithArbitraryPrefixLocked(bucket string,
 	response := gofakes3.NewObjectList()
 
 	if err := afero.Walk(db.fs, filepath.FromSlash("."), func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return err
+		}
+		info, err = db.fs.Stat(path)
 		if err != nil || info.IsDir() {
 			return err
 		}
